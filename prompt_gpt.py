@@ -8,7 +8,10 @@ from dotenv import load_dotenv
 # Load environment variables from the .env file
 load_dotenv()
 
-def prompt_gpt(prompt, base64_image=None):
+def prompt_gpt(system_prompt: str, user_prompt: str, context_prompts: list = None, base64_images: list = None):
+    if system_prompt is None:
+        print("Error: System prompt is required.")
+        exit(1)
     # Get the OpenAI API key from the .env file
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -24,27 +27,53 @@ def prompt_gpt(prompt, base64_image=None):
       "model": "gpt-4o-mini",
       "messages": [
         {
-          "role": "user",
+          "role": "system",
           "content": [
             {
               "type": "text",
-              "text": prompt
+              "text": system_prompt
             }
           ]
         }
       ],
-      "max_tokens": 300
+      "max_tokens": 600
     }
 
-    if base64_image:
-        payload["messages"][0]["content"].append({
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/png;base64,{base64_image}"
-            }
-        })
+    if context_prompts is not None and len(context_prompts) > 0:
+        # Add the context prompts to the payload
+        for prompt in context_prompts:
+            payload["messages"].append({
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+            })
 
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    user_message = {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": user_prompt
+        }
+      ]
+    }
+
+    if base64_images is not None and len(base64_images) > 0:
+        for base64_image in base64_images:
+          user_message["content"].append({
+              "type": "image_url",
+              "image_url": {
+                  "url": f"data:image/png;base64,{base64_image}"
+              }
+          })
+
+    payload["messages"].append(user_message)
+
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=30)
 
     print(response.json())
 
