@@ -3,10 +3,28 @@ import sys
 import argparse
 import base64
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from dotenv import load_dotenv
 
 # Load environment variables from the .env file
 load_dotenv()
+
+# Create a retry strategy
+retry_strategy = Retry(
+    total=5,  # Total number of retries
+    backoff_factor=1,  # Wait time between retries (1 second, increases by 2^n on each retry)
+    status_forcelist=[429, 500, 502, 503, 504],  # Status codes that trigger a retry
+    allowed_methods=["HEAD", "GET", "PUT", "POST", "DELETE", "OPTIONS", "TRACE"]  # HTTP methods that trigger a retry
+)
+
+# Set the adapter with the retry strategy
+adapter = HTTPAdapter(max_retries=retry_strategy)
+
+# Create a session and mount the adapter
+session = requests.Session()
+session.mount("https://", adapter)
+session.mount("http://", adapter)
 
 def prompt_gpt(system_prompt: str, user_prompt: str, context_prompts: list = None, base64_images: list = None):
     if system_prompt is None:
@@ -73,7 +91,7 @@ def prompt_gpt(system_prompt: str, user_prompt: str, context_prompts: list = Non
 
     payload["messages"].append(user_message)
 
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=30)
+    response = session.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=30)
 
     print(response.json())
 
