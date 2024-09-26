@@ -37,6 +37,11 @@ def capture_and_summarize(base_save_folder=None, save_interval=300, max_batch_si
     screenshot_buffer = []
     summary_context_path = None
 
+    def cleanupScreenshotBuffer():
+        while len(screenshot_buffer) > 0:
+            path = screenshot_buffer.pop(0)
+            os.remove(path)
+
     # Capture and summarize the screenshots at the specified interval
     try:
         while True:
@@ -44,7 +49,8 @@ def capture_and_summarize(base_save_folder=None, save_interval=300, max_batch_si
             screenshot_buffer.append(screenshot_path)
             if len(screenshot_buffer) >= max_batch_size:
                 summary_context_path = summarize_screenshot(screenshot_buffer, summaries_folder, summary_context_path)
-                screenshot_buffer = []
+                # Clear the screenshot buffer after summarizing
+                cleanupScreenshotBuffer()
 
             # Wait for the specified interval before capturing the next screenshot
             time.sleep(save_interval)
@@ -53,7 +59,7 @@ def capture_and_summarize(base_save_folder=None, save_interval=300, max_batch_si
         print("\nUser interrupted the script. Generating final summary...")
         if screenshot_buffer:
             summary_context_path = summarize_screenshot(screenshot_buffer, summaries_folder, summary_context_path)
-            screenshot_buffer = []
+            cleanupScreenshotBuffer()
         final_summary_path = summarize_summaries(summaries_folder, os.path.join(session_folder, "final_summary.txt"))
         print(f"Final Summary saved at: {final_summary_path}")
         print("Exiting...")
